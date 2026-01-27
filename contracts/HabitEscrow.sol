@@ -1,6 +1,5 @@
 /**
  * @title Strict Habit Coach - 核心资金合约
- * @author [你的名字/共创团队名]
  * @notice 本合约实现了“严格自律教练”项目的质押与惩罚机制。
  * @dev 逻辑流程：
  * 1. 用户调用 deposit() 质押代币。

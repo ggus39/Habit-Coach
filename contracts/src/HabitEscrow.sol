@@ -17,6 +17,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * 4. 成功完成挑战获得 ETH 返还 + STRICT 代币奖励
  * 5. 紧急退出支付30%懦夫税
  * 6. 复活卡机制
+ *
+ * 奖励公式：reward = baseReward * (stakeAmount / minStakeAmount) * (targetDays / baseDays)
  */
 contract HabitEscrow is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -29,8 +31,9 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
     address public constant BURN_ADDRESS =
         0x000000000000000000000000000000000000dEaD;
 
-    uint256 public standardStake = 0.1 ether; // 标准质押金额
-    uint256 public baseReward = 1000 * 10 ** 18; // 基础奖励（1000 STRICT）
+    uint256 public minStakeAmount = 0.01 ether; // 最低质押金额
+    uint256 public baseReward = 100 * 10 ** 18; // 基础奖励（100 STRICT，对应最低质押+7天）
+    uint256 public baseDays = 7; // 基准挑战天数
     uint256 public cowardTaxRate = 30; // 懦夫税比例（30%）
 
     // ========== 枚举 ==========
@@ -57,7 +60,6 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
         uint256 targetDays; // 目标天数
         uint256 completedDays; // 已完成天数
         uint256 startTime; // 开始时间
-        uint256 difficultyMultiplier; // 难度系数 (1-3, 以100为基准，即100=1x, 200=2x)
         PenaltyType penaltyType; // 惩罚去向
         ChallengeStatus status; // 挑战状态
         bool resurrectionUsed; // 复活卡是否已使用
@@ -138,23 +140,17 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
 
     /**
      * @dev 创建挑战
-     * @param _targetDays 目标天数
-     * @param _difficultyMultiplier 难度系数 (100=1x, 200=2x, 300=3x)
+     * @param _targetDays 目标天数（最少7天）
      * @param _penaltyType 惩罚去向
      * @param _habitDescription 习惯描述
      */
     function createChallenge(
         uint256 _targetDays,
-        uint256 _difficultyMultiplier,
         PenaltyType _penaltyType,
         string calldata _habitDescription
     ) external payable nonReentrant {
-        require(msg.value > 0, "Must stake ETH");
-        require(_targetDays > 0, "Target days must be > 0");
-        require(
-            _difficultyMultiplier >= 100 && _difficultyMultiplier <= 300,
-            "Invalid difficulty"
-        );
+        require(msg.value >= minStakeAmount, "Stake too low");
+        require(_targetDays >= baseDays, "Target days too short");
 
         uint256 challengeId = challengeCount[msg.sender];
 
@@ -163,7 +159,6 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
             targetDays: _targetDays,
             completedDays: 0,
             startTime: block.timestamp,
-            difficultyMultiplier: _difficultyMultiplier,
             penaltyType: _penaltyType,
             status: ChallengeStatus.Active,
             resurrectionUsed: false,
@@ -238,10 +233,10 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
             "Challenge not completed"
         );
 
-        // 计算奖励: BaseReward * (StakeAmount / StandardStake) * DifficultyMultiplier
+        // 计算奖励: baseReward * (stakeAmount / minStake) * (targetDays / baseDays)
         uint256 reward = (baseReward *
             challenge.stakeAmount *
-            challenge.difficultyMultiplier) / (standardStake * 100);
+            challenge.targetDays) / (minStakeAmount * baseDays);
 
         // 检查奖励池余额
         uint256 tokenBalance = strictToken.balanceOf(address(this));
@@ -343,10 +338,10 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 更新标准质押金额
+     * @dev 更新最低质押金额
      */
-    function setStandardStake(uint256 _standardStake) external onlyOwner {
-        standardStake = _standardStake;
+    function setMinStakeAmount(uint256 _minStakeAmount) external onlyOwner {
+        minStakeAmount = _minStakeAmount;
     }
 
     /**
@@ -354,6 +349,14 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
      */
     function setBaseReward(uint256 _baseReward) external onlyOwner {
         baseReward = _baseReward;
+    }
+
+    /**
+     * @dev 更新基准天数
+     */
+    function setBaseDays(uint256 _baseDays) external onlyOwner {
+        require(_baseDays > 0, "Base days must be > 0");
+        baseDays = _baseDays;
     }
 
     /**
@@ -385,14 +388,16 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
 
     /**
      * @dev 计算预估奖励
+     * @param _stakeAmount 质押金额
+     * @param _targetDays 目标天数
      */
     function calculateReward(
         uint256 _stakeAmount,
-        uint256 _difficultyMultiplier
+        uint256 _targetDays
     ) external view returns (uint256) {
         return
-            (baseReward * _stakeAmount * _difficultyMultiplier) /
-            (standardStake * 100);
+            (baseReward * _stakeAmount * _targetDays) /
+            (minStakeAmount * baseDays);
     }
 
     // ========== 接收 ETH ==========

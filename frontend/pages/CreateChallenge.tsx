@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { Page } from '../types';
@@ -23,37 +23,6 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
   const [stakeAmount, setStakeAmount] = useState(0.01); // ETH
   const [targetDays, setTargetDays] = useState(21);
   const [penaltyType, setPenaltyType] = useState<PenaltyType>(PenaltyType.Charity);
-  const [activeStep, setActiveStep] = useState(1);
-
-  // 监听滚动以更新步骤状态
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = [
-        { id: 'step-habit', step: 1 },
-        { id: 'step-goal', step: 2 },
-        { id: 'step-stake', step: 3 },
-        { id: 'step-penalty', step: 4 },
-      ];
-
-      const scrollThreshold = window.innerHeight * 0.3; // 视口上方 30% 处触发
-
-      let current = 1;
-      for (const section of sections) {
-        const el = document.getElementById(section.id);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top < scrollThreshold) {
-            current = section.step;
-          }
-        }
-      }
-      setActiveStep(current);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // 初始化
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // 合约写入
   const { data: hash, isPending, writeContract, error } = useWriteContract();
@@ -107,35 +76,24 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-normal">设定目标，质押资金，赢得自我</p>
               </div>
               <div className="flex flex-col gap-8 relative">
-                {/* 连接线 (可选，如果需要更强的视觉引导) */}
-                {/* <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-slate-100 -z-10"></div> */}
-
                 {[
                   { step: 1, title: '习惯选择', desc: '选择你想养成的习惯' },
                   { step: 2, title: '目标设定', desc: '设定挑战天数' },
                   { step: 3, title: '质押金额', desc: '承诺你的决心' },
                   { step: 4, title: '失败去向', desc: '如果未完成...' },
-                ].map((item) => {
-                  const isCompleted = activeStep > item.step;
-                  const isActive = activeStep === item.step;
-
-                  return (
-                    <div key={item.step} className={`flex items-center gap-4 transition-all duration-300 ${isActive || isCompleted ? 'opacity-100' : 'opacity-50'}`}>
-                      <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
-                        ${isCompleted ? 'bg-primary text-white shadow-md shadow-primary/20' :
-                          isActive ? 'bg-white border-2 border-primary text-primary scale-110' :
-                            'bg-white border-2 border-slate-200 text-slate-400'}`}>
-                        {isCompleted ? <span className="material-symbols-outlined text-sm font-bold">check</span> : item.step}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className={`text-sm font-bold transition-colors ${isActive || isCompleted ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
-                          {item.title}
-                        </span>
-                        <span className="text-[11px] text-slate-400">{item.desc}</span>
-                      </div>
+                ].map((item) => (
+                  <div key={item.step} className="flex items-center gap-4">
+                    <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-md shadow-primary/20">
+                      {item.step}
                     </div>
-                  );
-                })}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                        {item.title}
+                      </span>
+                      <span className="text-[11px] text-slate-400">{item.desc}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="mt-12 bg-sky-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-sky-100 dark:border-slate-700">

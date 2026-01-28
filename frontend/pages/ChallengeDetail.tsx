@@ -19,7 +19,7 @@ const ChallengeDetail: React.FC<ChallengeDetailProps> = ({ setPage }) => {
           <span>30天沉浸式阅读挑战</span>
         </div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900">30天阅读挑战详情 (含对赌协议)</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900">30天阅读挑战详情</h1>
           <div className="flex gap-3">
             <button className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-full text-sm hover:bg-slate-50 transition-colors flex items-center gap-2">
               <Icon name="share" className="text-lg" /> 分享进度

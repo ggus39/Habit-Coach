@@ -19,7 +19,7 @@ function App() {
       case Page.CHALLENGE_LIST:
         return <ChallengeList setPage={setCurrentPage} />;
       case Page.DASHBOARD:
-        return <Dashboard />;
+        return <Dashboard setPage={setCurrentPage} />;
       case Page.CHALLENGE_DETAIL:
         return <ChallengeDetail setPage={setCurrentPage} />;
       default:

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { Page } from '../types';
@@ -23,6 +23,37 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
   const [stakeAmount, setStakeAmount] = useState(0.01); // ETH
   const [targetDays, setTargetDays] = useState(21);
   const [penaltyType, setPenaltyType] = useState<PenaltyType>(PenaltyType.Charity);
+  const [activeStep, setActiveStep] = useState(1);
+
+  // 监听滚动以更新步骤状态
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = [
+        { id: 'step-habit', step: 1 },
+        { id: 'step-goal', step: 2 },
+        { id: 'step-stake', step: 3 },
+        { id: 'step-penalty', step: 4 },
+      ];
+
+      const scrollThreshold = window.innerHeight * 0.3; // 视口上方 30% 处触发
+
+      let current = 1;
+      for (const section of sections) {
+        const el = document.getElementById(section.id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top < scrollThreshold) {
+            current = section.step;
+          }
+        }
+      }
+      setActiveStep(current);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // 初始化
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // 合约写入
   const { data: hash, isPending, writeContract, error } = useWriteContract();
@@ -76,34 +107,35 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-normal">设定目标，质押资金，赢得自我</p>
               </div>
               <div className="flex flex-col gap-8 relative">
-                <div className="flex items-center gap-4">
-                  <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-md shadow-primary/20">1</div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">习惯选择</span>
-                    <span className="text-[11px] text-slate-400">选择你想养成的习惯</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="size-8 rounded-full bg-white border-2 border-primary text-primary flex items-center justify-center text-xs font-bold">2</div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">目标设定</span>
-                    <span className="text-[11px] text-slate-400">设定挑战天数</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 opacity-50">
-                  <div className="size-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold">3</div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-slate-500">质押金额</span>
-                    <span className="text-[11px] text-slate-400">承诺你的决心</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 opacity-50">
-                  <div className="size-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold">4</div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-slate-500">失败去向</span>
-                    <span className="text-[11px] text-slate-400">如果未完成...</span>
-                  </div>
-                </div>
+                {/* 连接线 (可选，如果需要更强的视觉引导) */}
+                {/* <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-slate-100 -z-10"></div> */}
+
+                {[
+                  { step: 1, title: '习惯选择', desc: '选择你想养成的习惯' },
+                  { step: 2, title: '目标设定', desc: '设定挑战天数' },
+                  { step: 3, title: '质押金额', desc: '承诺你的决心' },
+                  { step: 4, title: '失败去向', desc: '如果未完成...' },
+                ].map((item) => {
+                  const isCompleted = activeStep > item.step;
+                  const isActive = activeStep === item.step;
+
+                  return (
+                    <div key={item.step} className={`flex items-center gap-4 transition-all duration-300 ${isActive || isCompleted ? 'opacity-100' : 'opacity-50'}`}>
+                      <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
+                        ${isCompleted ? 'bg-primary text-white shadow-md shadow-primary/20' :
+                          isActive ? 'bg-white border-2 border-primary text-primary scale-110' :
+                            'bg-white border-2 border-slate-200 text-slate-400'}`}>
+                        {isCompleted ? <span className="material-symbols-outlined text-sm font-bold">check</span> : item.step}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`text-sm font-bold transition-colors ${isActive || isCompleted ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
+                          {item.title}
+                        </span>
+                        <span className="text-[11px] text-slate-400">{item.desc}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="mt-12 bg-sky-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-sky-100 dark:border-slate-700">
@@ -122,7 +154,7 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
             {/* Right Content */}
             <div className="flex-1 flex flex-col gap-6">
               {/* 习惯选择 */}
-              <section className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
+              <section id="step-habit" className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
                 <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-8">选择你想养成的习惯</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {Object.entries(habitTypes).map(([key, habit]) => (
@@ -142,14 +174,14 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
               </section>
 
               {/* 目标设定 */}
-              <section className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
+              <section id="step-goal" className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
                 <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-8">设定挑战目标</h3>
                 <div className="flex flex-col gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">目标天数</label>
                     <div className="relative">
                       <input
-                        className="block w-full rounded-xl border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3 text-slate-900 dark:text-white focus:border-primary focus:ring-primary text-sm"
+                        className="block w-full rounded-xl border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3 text-slate-900 dark:text-white focus:border-primary focus:ring-primary text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         type="number"
                         value={targetDays}
                         onChange={(e) => setTargetDays(Number(e.target.value))}
@@ -166,7 +198,7 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
               </section>
 
               {/* 质押金额 */}
-              <section className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
+              <section id="step-stake" className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
                 <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-8">承诺金额 (Staking)</h3>
                 <div className="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-8">
                   <div className="flex justify-between items-end mb-8">
@@ -205,7 +237,7 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
               </section>
 
               {/* 惩罚类型选择 */}
-              <section className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800 mb-4">
+              <section id="step-penalty" className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800 mb-4">
                 <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-8">如果失败，资金去向?</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[

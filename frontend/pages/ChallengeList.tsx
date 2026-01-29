@@ -69,10 +69,16 @@ const ChallengeList: React.FC<ChallengeListProps> = ({ setPage }) => {
 
   // 组合挑战数据
   useEffect(() => {
+    console.log('Challenge 0:', challenge0);
+    console.log('Challenge 1:', challenge1);
+    console.log('Challenge 2:', challenge2);
+
     const allChallenges: (Challenge & { id: number })[] = [];
     if (challenge0) allChallenges.push({ ...(challenge0 as unknown as Challenge), id: 0 });
     if (challenge1) allChallenges.push({ ...(challenge1 as unknown as Challenge), id: 1 });
     if (challenge2) allChallenges.push({ ...(challenge2 as unknown as Challenge), id: 2 });
+
+    console.log('All Challenges:', allChallenges);
     setChallenges(allChallenges);
   }, [challenge0, challenge1, challenge2]);
 

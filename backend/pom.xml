@@ -77,6 +77,13 @@
             <artifactId>github-api</artifactId>
             <version>1.318</version>
         </dependency>
+        
+        <!-- Web3j for Blockchain Interaction -->
+        <dependency>
+            <groupId>org.web3j</groupId>
+            <artifactId>core</artifactId>
+            <version>4.10.0</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { parseEther } from 'viem';
 import { Page } from '../types';
@@ -25,6 +25,62 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
   const [targetDays, setTargetDays] = useState(21);
   const [penaltyType, setPenaltyType] = useState<PenaltyType>(PenaltyType.Charity);
 
+  // 读取用户挑战数量
+  const { data: challengeCount } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'challengeCount',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  // 读取所有可能的挑战 (假设上限是 10 个，但用户说只能发起 3 个，我们读前 3 个或者更多以防万一)
+  // 为了简单，我们只读前 5 个，因为 challengeCount 应该很小
+  // 使用 useReadContracts 批量读取会更优雅，但这里复用 ChallengeList 的分开读取逻辑简单直接
+  const { data: challenge0 } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'getChallenge',
+    args: address && challengeCount && challengeCount > 0n ? [address, 0n] : undefined,
+    query: { enabled: !!address && !!challengeCount && challengeCount > 0n },
+  });
+
+  const { data: challenge1 } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'getChallenge',
+    args: address && challengeCount && challengeCount > 1n ? [address, 1n] : undefined,
+    query: { enabled: !!address && !!challengeCount && challengeCount > 1n },
+  });
+
+  const { data: challenge2 } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'getChallenge',
+    args: address && challengeCount && challengeCount > 2n ? [address, 2n] : undefined,
+    query: { enabled: !!address && !!challengeCount && challengeCount > 2n },
+  });
+
+  // 获取当前所有 Active 的挑战描述
+  const [activeHabitKeys, setActiveHabitKeys] = useState<string[]>([]);
+
+  React.useEffect(() => {
+    const keys: string[] = [];
+    // Helper to check challenge
+    const check = (c: any) => {
+      if (c && c.status === 0) { // 0 = Active
+        // 匹配 habitTypes
+        if (c.habitDescription.includes('阅读')) keys.push('reading');
+        if (c.habitDescription.includes('跑步')) keys.push('running');
+        if (c.habitDescription.includes('编程')) keys.push('coding');
+      }
+    };
+    check(challenge0);
+    check(challenge1);
+    check(challenge2);
+    setActiveHabitKeys(keys);
+  }, [challenge0, challenge1, challenge2]);
+
   // 合约写入
   const { data: hash, isPending, writeContract, error } = useWriteContract();
 
@@ -39,6 +95,11 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
   const handleCreateChallenge = async () => {
     if (!isConnected) {
       alert('请先连接钱包');
+      return;
+    }
+
+    if (activeHabitKeys.includes(selectedHabit)) {
+      alert('该类型的挑战正在进行中，请先完成后再开启新挑战');
       return;
     }
 
@@ -118,19 +179,30 @@ const CreateChallenge: React.FC<CreateChallengeProps> = ({ setPage }) => {
               <section id="step-habit" className="bg-white dark:bg-surface-dark rounded-2xl p-8 shadow-soft border border-slate-100 dark:border-slate-800">
                 <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-8">选择你想养成的习惯</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {Object.entries(habitTypes).map(([key, habit]) => (
-                    <div
-                      key={key}
-                      onClick={() => setSelectedHabit(key as keyof typeof habitTypes)}
-                      className={`group cursor-pointer rounded-2xl p-6 transition-all border-2 relative ${selectedHabit === key ? 'bg-slate-50/50 border-primary card-selected-icon' : 'bg-slate-50/50 border-transparent hover:border-slate-200'}`}
-                    >
-                      <div className={`mb-4 aspect-square w-full overflow-hidden rounded-xl bg-${habit.color}-100/50 flex items-center justify-center`}>
-                        <span className={`material-symbols-outlined text-4xl text-${habit.color}-500`}>{habit.icon}</span>
+                  {Object.entries(habitTypes).map(([key, habit]) => {
+                    const isActive = activeHabitKeys.includes(key);
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => !isActive && setSelectedHabit(key as keyof typeof habitTypes)}
+                        className={`group cursor-pointer rounded-2xl p-6 transition-all border-2 relative 
+                        ${isActive ? 'opacity-50 cursor-not-allowed bg-slate-100 border-transparent grayscale' :
+                            selectedHabit === key ? 'bg-slate-50/50 border-primary card-selected-icon' : 'bg-slate-50/50 border-transparent hover:border-slate-200'}`}
+                      >
+                        {isActive && (
+                          <div className="absolute top-2 right-2 px-2 py-0.5 bg-slate-200 text-slate-500 text-[10px] rounded font-bold">
+                            进行中
+                          </div>
+                        )}
+
+                        <div className={`mb-4 aspect-square w-full overflow-hidden rounded-xl bg-${habit.color}-100/50 flex items-center justify-center`}>
+                          <span className={`material-symbols-outlined text-4xl text-${habit.color}-500`}>{habit.icon}</span>
+                        </div>
+                        <h4 className="mb-1 text-base font-bold text-slate-900">{habit.name}</h4>
+                        <p className="text-xs text-slate-500">{habit.description}</p>
                       </div>
-                      <h4 className="mb-1 text-base font-bold text-slate-900">{habit.name}</h4>
-                      <p className="text-xs text-slate-500">{habit.description}</p>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
 

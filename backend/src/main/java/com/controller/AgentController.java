@@ -1,5 +1,7 @@
 package com.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.domain.DailyCheckIn;
 import com.domain.entity.GitHubConnection;
 import com.service.GitHubOAuthService;
 import com.service.GitHubService;
@@ -26,6 +28,9 @@ public class AgentController {
 
     @Autowired
     private GitHubOAuthService gitHubOAuthService;
+
+    @Autowired
+    private com.service.BlockchainService blockchainService;
 
     @Value("${frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -95,16 +100,19 @@ public class AgentController {
 
     // ==================== GitHub 打卡检测 ====================
 
+    @Autowired
+    private com.mapper.DailyCheckInMapper dailyCheckInMapper;
+
     /**
      * 检查用户今日 GitHub 打卡状态
      * @param walletAddress 用户钱包地址
-     * @param repo 仓库名
+     * @param challengeId   挑战ID (前端传入)
      * @return 打卡结果
      */
     @GetMapping("/github/check")
     public Map<String, Object> checkGitHub(
             @RequestParam String walletAddress,
-            @RequestParam String repo) {
+            @RequestParam(required = false) Long challengeId) {
         
         Map<String, Object> result = new HashMap<>();
         
@@ -120,10 +128,51 @@ public class AgentController {
         String username = connection.getGithubUsername();
         String token = connection.getAccessToken();
         
-        boolean hasCommits = gitHubService.hasCommitsToday(username, repo, token);
-        result.put("success", true);
-        result.put("clockedIn", hasCommits);
-        result.put("message", hasCommits ? "今日已打卡 ✅" : "今日未打卡 ❌");
+        // 不再检查特定仓库，而是检查用户今日是否有 Push 事件
+        boolean hasCommits = gitHubService.hasCommitsToday(username, token);
+        
+        if (hasCommits) {
+            result.put("success", true);
+            result.put("clockedIn", true);
+            result.put("message", "今日已打卡 ✅");
+            
+            // 3. 如果从前端传入了 challengeId，则尝试记录上链
+            if (challengeId != null) {
+                // Check idempotency
+                java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"));
+                LambdaQueryWrapper<DailyCheckIn> query = new LambdaQueryWrapper<>();
+                query.eq(DailyCheckIn::getWalletAddress, walletAddress)
+                     .eq(DailyCheckIn::getChallengeId, challengeId)
+                     .eq(DailyCheckIn::getCheckInDate, today);
+                
+                if (dailyCheckInMapper.exists(query)) {
+                    result.put("message", "今日已打卡 ✅ (无需重复上链)");
+                } else {
+                    try {
+                        String txHash = blockchainService.recordDayComplete(walletAddress, java.math.BigInteger.valueOf(challengeId));
+                        
+                        // Record success in DB
+                        com.domain.DailyCheckIn checkIn = new com.domain.DailyCheckIn();
+                        checkIn.setWalletAddress(walletAddress);
+                        checkIn.setChallengeId(challengeId);
+                        checkIn.setCheckInDate(today);
+                        checkIn.setCreatedAt(java.time.LocalDateTime.now());
+                        dailyCheckInMapper.insert(checkIn);
+
+                        result.put("txHash", txHash);
+                        result.put("message", "今日已打卡 ✅ (链上记录成功: " + txHash + ")");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        result.put("message", "今日已打卡 ✅ (但链上记录失败: " + e.getMessage() + ")");
+                    }
+                }
+            }
+        } else {
+            result.put("success", true);
+            result.put("clockedIn", false);
+            result.put("message", "今日未打卡 ❌");
+        }
+        
         result.put("githubUsername", username);
         
         return result;

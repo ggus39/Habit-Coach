@@ -1,15 +1,15 @@
 package com.service;
 
-import org.kohsuke.github.GHCommit;
-import org.kohsuke.github.GHRepository;
+import org.kohsuke.github.GHEvent;
+import org.kohsuke.github.GHEventInfo;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.GitHubBuilder;
+import org.kohsuke.github.PagedIterable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
-import java.util.List;
 
 /**
  * GitHub 服务
@@ -19,13 +19,12 @@ import java.util.List;
 public class GitHubService {
 
     /**
-     * 检查用户今日是否有提交
+     * 检查用户今日是否有提交 (任意仓库)
      * @param username GitHub 用户名
-     * @param repoName 仓库名称
      * @param token GitHub Token
      * @return true 如果今日有提交
      */
-    public boolean hasCommitsToday(String username, String repoName, String token) {
+    public boolean hasCommitsToday(String username, String token) {
         try {
             GitHub github;
             if (token != null && !token.isEmpty()) {
@@ -34,19 +33,26 @@ public class GitHubService {
                 github = new GitHubBuilder().build();
             }
 
-            // 获取仓库
-            GHRepository repo = github.getRepository(username + "/" + repoName);
-
             // 获取今日零点时间
             Date today = Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant());
 
-            // 查询 Commit
-            List<GHCommit> commits = repo.queryCommits()
-                    .since(today)
-                    .list()
-                    .toList();
+            // 获取用户事件列表
+            // events 是按时间倒序排列的
+            PagedIterable<GHEventInfo> events = github.getUser(username).listEvents();
 
-            return !commits.isEmpty();
+            for (GHEventInfo event : events) {
+                // 如果事件时间早于今天，说明已经检查完今日所有事件，未发现 Push
+                if (event.getCreatedAt().before(today)) {
+                    break;
+                }
+
+                // 检查是否是 Push 事件
+                if (event.getType() == GHEvent.PUSH) {
+                    return true;
+                }
+            }
+
+            return false;
         } catch (Exception e) {
             // 记录日志但不抛出异常
             System.err.println("检查 GitHub 提交失败: " + e.getMessage());

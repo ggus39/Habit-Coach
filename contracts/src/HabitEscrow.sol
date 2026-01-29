@@ -152,7 +152,7 @@ contract HabitEscrow is Ownable, ReentrancyGuard {
         require(msg.value >= minStakeAmount, "Stake too low");
         require(_targetDays >= baseDays, "Target days too short");
 
-        uint256 challengeId = challengeCount[msg.sender];   // 获取当前挑战ID，也就是挑战计数
+        uint256 challengeId = challengeCount[msg.sender]; // 获取当前挑战ID，也就是挑战计数
 
         challenges[msg.sender][challengeId] = Challenge({
             stakeAmount: msg.value,

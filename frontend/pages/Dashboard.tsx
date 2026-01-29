@@ -1,42 +1,19 @@
 import React from 'react';
 import { Icon } from '../components/Icon';
-// import { useNavigate } from 'react-router-dom'; // Commented out as we use setPage prop in this app structure usually, but strict adherence to user code first.
-// The user code uses useNavigate, but the App.tsx uses functional state for navigation.
-// I will adapt the user's code slightly to match the App's navigation props if they exist, or keep strictly if requested.
-// User rule: "User input requirements priority > system setting requirements."
-// User provided code uses `useNavigate` from `react-router-dom`, but the current project uses `useState` in `App.tsx` for navigation.
-// To avoid breaking the app immediately, I might need to adjust `header` or just accept it might not link correctly yet.
-// However, looking at the user's current App.tsx, it does NOT use react-router-dom. It uses conditional rendering.
-// I should probably warn the user or adapt it.
-// Let's look at `Dashboard.tsx` imports in the user request.
-// `import { useNavigate } from 'react-router-dom';`
-// Since `react-router-dom` is likely not installed or set up, I should probably adapt the navigation to `setPage`.
-// Wait, the user said "Data dashboard page update to like that above".
-// I will try to respect the code as much as possible. If I paste it exactly, it will break because of missing `react-router-dom`.
-// I will change `useNavigate` to use the `setPage` prop convention existing in the app, 
-// OR I will just paste it and let the user know they need router.
-// Actually, looking at the previous file `Dashboard.tsx`, it takes no props?
-// Let's check `App.tsx` again. `case Page.DASHBOARD: return <Dashboard />;` -> It passes NO props.
-// So `Dashboard` cannot switch pages currently.
-// I will just comment out the navigation part or mock it to prevent crash, 
-// but I will write the file content as requested.
-// actually I will make `Dashboard` accept `setPage` in `App.tsx` later if needed.
-// For now, I'll modify the code slightly to avoid build error: `navigate` -> `console.log`.
 
-// Actually, I'll check if `react-router-dom` is in package.json.
-// PROBABLY NOT.
-// I will replace `useNavigate` with a mock to avoid errors, or just not use it.
-// The user code has: `onClick={() => navigate('/challenge')}`
-// I will simply replace this with a comment or a dummy function to ensure it compiles.
-
-// Wait, the user provided exact code. I should probably use it but adapt the imports if necessary.
-// I'll stick to the user's code structure but fix the navigation compatibility issue by using a "stub" or assuming `setPage` will be passed eventually.
-// Actually, `App.tsx` renders `<Dashboard />` without props.
-// I'll adapt the user code to be compatible with the current project (no router).
 
 import { Page } from '../types';
-import { useAccount } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
+import { HABIT_ESCROW_ABI, HABIT_ESCROW_ADDRESS, Challenge, ChallengeStatus } from '../contracts';
 import { useState, useEffect } from 'react';
+
+// 习惯图标映射
+const getHabitIcon = (description: string) => {
+  if (description.includes('阅读')) return { icon: 'menu_book', color: 'blue' };
+  if (description.includes('跑步')) return { icon: 'directions_run', color: 'orange' };
+  if (description.includes('编程')) return { icon: 'code', color: 'purple' };
+  return { icon: 'trending_up', color: 'emerald' };
+};
 
 interface DashboardProps {
   setPage?: (page: Page) => void;
@@ -44,6 +21,59 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   const { address, isConnected } = useAccount();
+
+  //读取挑战数量
+  const { data: challengeCount } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'challengeCount',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    }
+  });
+
+  // 读取每个挑战的详情 (Copied from ChallengeList)
+  const { data: challenge0 } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'getChallenge',
+    args: address && challengeCount && challengeCount > 0n ? [address, 0n] : undefined,
+    query: { enabled: !!address && !!challengeCount && challengeCount > 0n },
+  });
+
+  const { data: challenge1 } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'getChallenge',
+    args: address && challengeCount && challengeCount > 1n ? [address, 1n] : undefined,
+    query: { enabled: !!address && !!challengeCount && challengeCount > 1n },
+  });
+
+  const { data: challenge2 } = useReadContract({
+    address: HABIT_ESCROW_ADDRESS,
+    abi: HABIT_ESCROW_ABI,
+    functionName: 'getChallenge',
+    args: address && challengeCount && challengeCount > 2n ? [address, 2n] : undefined,
+    query: { enabled: !!address && !!challengeCount && challengeCount > 2n },
+  });
+
+  const [activeChallenges, setActiveChallenges] = useState<(Challenge & { id: number })[]>([]);
+
+  useEffect(() => {
+    const all: (Challenge & { id: number })[] = [];
+    if (challenge0) all.push({ ...(challenge0 as unknown as Challenge), id: 0 });
+    if (challenge1) all.push({ ...(challenge1 as unknown as Challenge), id: 1 });
+    if (challenge2) all.push({ ...(challenge2 as unknown as Challenge), id: 2 });
+
+    // Filter only active challenges
+    const active = all.filter(c => c.status === ChallengeStatus.Active);
+    setActiveChallenges(active);
+  }, [challenge0, challenge1, challenge2]);
+
+  // 获取最新的挑战ID (保留原有逻辑作为备用，或者用于其他目的)
+  const activeChallengeId = challengeCount ? Number(challengeCount) - 1 : undefined;
+
   const [githubStatus, setGithubStatus] = useState<{
     connected: boolean;
     username?: string;
@@ -52,7 +82,6 @@ const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   const [isChecking, setIsChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
 
-  // 后端 API 基础路径
   // 后端 API 基础路径
   const API_BASE = 'https://frp-oil.com:16292/agent';
 
@@ -100,27 +129,70 @@ const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   };
 
   // 3. 检查今日打卡
-  const handleCheckCommits = async () => {
+  const handleCheckCommits = async (isAuto = false) => {
     if (!address || !githubStatus.connected) return;
     setIsChecking(true);
     setCheckResult(null);
+
+    let succcesCount = 0;
+    let txHashes: string[] = [];
+    let clockedIn = false;
+
     try {
-      // 假设当前仓库名固定或从配置获取，这里先写死测试，后续可改为配置项
-      const repo = 'Strict-Habit-Coach';
-      const resp = await fetch(`${API_BASE}/github/check?walletAddress=${address}&repo=${repo}`);
-      const data = await resp.json();
-      setCheckResult(data.message);
-      if (data.clockedIn) {
-        alert('恭喜！今日代码提交已通过 AI 验证 ✅');
+      if (activeChallenges.length === 0) {
+        // Fallback or just check 0 if exists? Or just display logic. 
+        // If no active challenges, maybe just check generic status?
+        // But for "Today's Tasks", we typically iterate active ones.
+        // Let's keep the generic check just in case, or skip?
+        // If no active challenges, let's just do a generic check to show "Clocked In" status generally?
+        // But wait, user wants one-to-one mapping.
+        // If 0 active challenges, the list is empty, nothing to check.
+        setCheckResult("当前无进行中的挑战");
       } else {
-        alert('今日尚未检测到有效提交，请继续加油 ❌');
+        // Iterate all active challenges
+        for (const challenge of activeChallenges) {
+          // 只处理 "编程" 挑战 (GitHub 挑战)
+          if (!challenge.habitDescription.includes('编程')) continue;
+
+          let url = `${API_BASE}/github/check?walletAddress=${address}&challengeId=${challenge.id}`;
+          const resp = await fetch(url);
+          const data = await resp.json();
+
+          if (data.clockedIn) {
+            clockedIn = true;
+            succcesCount++;
+            if (data.txHash) txHashes.push(data.txHash);
+          }
+        }
+
+        if (clockedIn) {
+          let msg = `今日已打卡 ✅`;
+          if (txHashes.length > 0) msg += `\n交易哈希: ${txHashes.join(', ')}`;
+          setCheckResult(msg);
+
+          if (!isAuto) alert(msg);
+        } else if (succcesCount === 0 && activeChallenges.some(c => c.habitDescription.includes('编程'))) {
+          // 只有当有 编程 挑战 且未打卡时才提示未完成，否则不打扰
+          const msg = '今日尚未检测到有效提交，请继续加油 ❌';
+          setCheckResult(msg);
+          if (!isAuto) alert(msg);
+        }
       }
+
     } catch (e) {
       setCheckResult('检查失败，请重试');
+      console.error(e);
     } finally {
       setIsChecking(false);
     }
   };
+
+  useEffect(() => {
+    if (githubStatus.connected && activeChallenges.length > 0) {
+      // 简单防抖或只触发一次? 依赖项变化可能会触发多次，但 items 数量变化不频繁
+      handleCheckCommits(true);
+    }
+  }, [githubStatus.connected, activeChallenges.length]);
 
   const navigate = (path: string) => {
     console.log('Navigate to:', path);
@@ -201,36 +273,41 @@ const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Today's Habits</span>
             </div>
             <div className="space-y-6">
-              <div className="flex items-center gap-6">
-                <div className="size-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-                  <Icon name="code" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-slate-700">
-                      GitHub 代码提交 {githubStatus.connected && <span className="text-xs text-primary ml-2">(@{githubStatus.username})</span>}
-                    </span>
-                    <span className={`text-sm font-black ${checkResult?.includes('已打卡') ? 'text-emerald-500' : 'text-slate-300'}`}>
-                      {checkResult?.includes('已打卡') ? '100%' : '0%'}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${checkResult?.includes('已打卡') ? 'bg-emerald-500 w-full' : 'bg-slate-200 w-0'}`}></div>
-                  </div>
-                </div>
-                <div className="w-24 text-right">
-                  {githubStatus.connected ? (
-                    <button
-                      onClick={handleCheckCommits}
-                      className="px-2.5 py-1 bg-primary text-white rounded-lg text-xs font-bold hover:bg-sky-500"
-                    >
-                      {isChecking ? '检查中...' : '同步提交'}
-                    </button>
-                  ) : (
-                    <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-lg text-xs font-bold whitespace-nowrap">未绑定 GitHub</span>
-                  )}
-                </div>
-              </div>
+              {activeChallenges.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-sm">暂无进行中的挑战</div>
+              ) : (
+                activeChallenges.map((challenge) => {
+                  const habitInfo = getHabitIcon(challenge.habitDescription);
+                  // 仅 "编程" 挑战显示 "已完成" (GitHub 打卡)，其他暂时保持 "进行中"
+                  const isGitHubHabit = challenge.habitDescription.includes('编程');
+                  const isClockedIn = isGitHubHabit && checkResult?.includes('已打卡');
+
+                  return (
+                    <div key={challenge.id} className="flex items-center gap-6 p-2 hover:bg-slate-50 rounded-xl transition-colors">
+                      <div className={`size-12 rounded-xl bg-${habitInfo.color}-50 text-${habitInfo.color}-600 flex items-center justify-center`}>
+                        <Icon name={habitInfo.icon} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-slate-700 text-base">
+                          {challenge.habitDescription.split(' - ')[0]}
+                        </h4>
+                      </div>
+                      <div>
+                        {isClockedIn ? (
+                          <div className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-bold">
+                            <Icon name="check_circle" className="text-lg" fill />
+                            <span>已完成</span>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-1.5 bg-sky-50 text-sky-500 rounded-lg text-sm font-bold text-center">
+                            进行中
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

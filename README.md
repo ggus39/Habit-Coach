@@ -394,7 +394,7 @@ Strict-Habit-Coach/
 |------|------|--------|
 | ggus39 | 产品经理 | [@ggus39](https://github.com/ggus39) |
 | Oronm | 全栈开发 | [@Oronm-boop](https://github.com/Oronm-boop) |
-| mengchenxin | UI 设计 | - |
+| mengchenxin | UI 设计 | [@mengchenxin](https://github.com/mengchenxin) |
 
 ---
 

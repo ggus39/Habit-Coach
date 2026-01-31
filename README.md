@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Kite AI](https://img.shields.io/badge/Powered%20by-Kite%20AI-blueviolet)](https://docs.gokite.ai/)
-[![Sepolia](https://img.shields.io/badge/Network-Sepolia%20Testnet-blue)](https://sepolia.etherscan.io/)
+[![Kite Chain](https://img.shields.io/badge/Network-Kite%20AI%20Testnet-blue)](https://testnet.kitescan.ai/)
 
 ## 📖 项目愿景
 
@@ -61,16 +61,18 @@ struct AgentPermission {
 }
 ```
 
-### 4. Sepolia 测试网 部署信息
+### 4. Kite AI Testnet 部署信息
 
 | 配置项 | 值 |
 |--------|-----|
-| Network | Sepolia Testnet |
-| Chain ID | 11155111 |
-| RPC URL | https://sepolia.infura.io/v3/APIkey |
-| Block Explorer | [TESTNET Sepolia (ETH) Blockchain Explorer](https://sepolia.etherscan.io/) |
-| 合约地址 (HabitEscrow) | `0xcECDE33801aDa871ABD5cd0406248B8A70a6FC32` (已部署) |
-| 合约地址 (StrictToken) | `0xba1180cC038342d9be147cfeC8490af8c44aCE44` (已部署) |
+| Network | KiteAI Testnet |
+| Chain ID | 2368 |
+| RPC URL | https://rpc-testnet.gokite.ai/ |
+| Block Explorer | [Kite Explorer](https://testnet.kitescan.ai/) |
+| Token | KITE |
+| Faucet | https://faucet.gokite.ai |
+| 合约地址 (HabitEscrow) | `0x6E577Db34B60fEb65c19b26a91c309B969bAA12F` |
+| 合约地址 (StrictToken) | `0x3f7120711c122274b9cB4d8D72A16B49e06d86f1` |
 
 ---
 
@@ -78,11 +80,11 @@ struct AgentPermission {
 
 ```mermaid
 graph TB
-    subgraph Infrastructure["🛠️ 基础设施"]
-        PASSPORT[Agent Passport<br/>Agent 身份]
+    subgraph KiteInfra["🪁 Kite AI 基础设施"]
+        PASSPORT[Kite Passport<br/>Agent 身份]
         ESCROW[Programmable Escrow<br/>可编程托管]
         SESSION[Session Keys<br/>权限控制]
-        CHAIN[Sepolia<br/>测试网]
+        CHAIN[Kite Chain<br/>测试网]
     end
 
     subgraph Agent["🤖 AI Agent 层"]
@@ -120,11 +122,11 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as 用户
-    participant P as Agent Passport
+    participant P as Kite Passport
     participant A as AI Agent
     participant E as Programmable Escrow
     participant D as DeepSeek V3
-    participant C as Sepolia
+    participant C as Kite Chain
 
     Note over U,C: 🟢 Phase 1: 资产托管 (Escrow Setup)
     U->>P: 授权 Agent 验证权限
@@ -155,13 +157,14 @@ sequenceDiagram
 
 ---
 
-## 🚀 快速启动
+## 🚀 快速启动 (本地开发)
 
 ### 环境要求
 
 - Node.js >= 18
 - Java 17 (后端)
-- MetaMask 钱包 (连接 Sepolia Testnet)
+- Foundry (合约部署)
+- MetaMask 钱包 (连接 Kite AI Testnet)
 
 ### 1. 克隆项目
 
@@ -170,19 +173,23 @@ git clone https://github.com/ggus39/Strict-Habit-Coach.git
 cd Strict-Habit-Coach
 ```
 
-### 2. 配置 Sepolia Testnet 网络
+### 2. 配置 Kite AI Testnet 网络
 
-在 MetaMask 中添加 sepolia testnet Chain 测试网：
+在 MetaMask 中添加 Kite AI 测试网：
 
 | 配置项 | 值 |
 |--------|-----|
-| Network Name | Sepolia Testnet |
-| RPC URL | https://rpc.sepolia.org      |
-| Chain ID | 11155111                     |
-| Currency Symbol | SepoliaETH                   |
-| Block Explorer | https://sepolia.etherscan.io |
+| Network Name | KiteAI Testnet |
+| RPC URL | https://rpc-testnet.gokite.ai/ |
+| Chain ID | 2368 |
+| Currency Symbol | KITE |
+| Block Explorer | https://testnet.kitescan.ai/ |
 
-### 3. 启动前端
+### 3. 获取测试代币
+
+访问 Kite Faucet 获取测试 KITE 代币：https://faucet.gokite.ai
+
+### 4. 启动前端 (本地开发)
 
 ```bash
 cd frontend
@@ -190,20 +197,149 @@ npm install
 npm run dev
 ```
 
-### 4. 启动后端 (AI Agent)
+### 5. 启动后端 (AI Agent)
 
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
-### 5. 体验完整流程
+### 6. 体验完整流程
 
-1. 连接钱包 → 选择 Sepolia Testnet
-2. 创建挑战 → 质押 ETH
+1. 连接钱包 → 选择 Kite AI Testnet
+2. 创建挑战 → 质押 KITE 代币
 3. 完成习惯 → 提交 GitHub Commit / Strava运动记录 / 笔记记录
 4. AI Agent 自动验证 → 查看链上交易记录
 5. 周期结束 → 领取奖励
+
+---
+
+## 🏭 生产环境部署
+
+### 一、智能合约部署 (Foundry)
+
+#### 1.1 安装 Foundry
+
+```bash
+# Linux/Mac/WSL
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# 验证安装
+forge --version
+```
+
+#### 1.2 配置环境变量
+
+在 `contracts/` 目录下创建 `.env` 文件：
+
+```env
+# 部署者私钥 (同时也将成为初始 Agent)
+PRIVATE_KEY_ETH=your_private_key_here
+```
+
+#### 1.3 编译并部署合约
+
+```bash
+cd contracts
+
+# 编译
+forge build
+
+# 部署到 Kite AI Testnet
+forge script script/Deploy.s.sol:DeployScript \
+    --rpc-url https://rpc-testnet.gokite.ai/ \
+    --broadcast \
+    -vvvv
+```
+
+#### 1.4 部署成功输出
+
+```
+== Logs ==
+  StrictToken deployed to: 0x3f7120711c122274b9cB4d8D72A16B49e06d86f1
+  HabitEscrow deployed to: 0x6E577Db34B60fEb65c19b26a91c309B969bAA12F
+  Transferred 100000000000000000000000000 STRICT tokens to Escrow
+```
+
+#### 1.5 更新前端合约地址
+
+将部署的合约地址更新到 `frontend/contracts/index.ts`：
+
+```typescript
+export const HABIT_ESCROW_ADDRESS = '0x6E577Db34B60fEb65c19b26a91c309B969bAA12F';
+export const STRICT_TOKEN_ADDRESS = '0x3f7120711c122274b9cB4d8D72A16B49e06d86f1';
+```
+
+---
+
+### 二、后端部署 (Spring Boot)
+
+#### 2.1 配置环境变量
+
+设置以下环境变量（可通过服务器环境变量或 `application-prod.yaml` 配置）：
+
+```bash
+# 数据库配置
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=strict_habit
+MYSQL_USERNAME=root
+MYSQL_PASSWORD=your_password
+
+# GitHub OAuth (可选)
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Strava OAuth (可选)
+STRAVA_CLIENT_ID=your_strava_client_id
+STRAVA_CLIENT_SECRET=your_strava_client_secret
+
+# AI Agent 链上交易配置
+AGENT_PRIVATE_KEY=your_agent_private_key
+KITE_RPC_URL=https://rpc-testnet.gokite.ai/
+
+# 前端 URL (用于 OAuth 回调)
+FRONTEND_URL=https://your-frontend.vercel.app
+```
+
+#### 2.2 构建 JAR 包
+
+```bash
+cd backend
+./mvnw clean package -DskipTests
+```
+
+#### 2.3 运行后端服务
+
+```bash
+# 开发环境
+./mvnw spring-boot:run
+
+# 生产环境
+java -jar target/strict-habit-coach-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+```
+
+---
+
+### 三、前端部署 (Vercel)
+
+#### Vercel CLI 部署
+
+```bash
+cd frontend
+
+# 安装 Vercel CLI
+npm i -g vercel
+
+# 登录 Vercel
+vercel login
+
+# 部署到生产环境
+vercel --prod
+```
+
+
 
 ---
 
@@ -217,9 +353,9 @@ cd backend
 
 | 操作 | 交易哈希 | 区块浏览器 |
 |------|---------|-----------|
-| 创建挑战 | `0xe7b95c73...` | [查看](https://sepolia.etherscan.io/tx/0xe7b95c7368f3d99545ea7bb04ea8874dd9b4b05791f0a7480f71aed4ca0a188b) |
-| AI Slash | `0x92b853dd...` | [查看](https://sepolia.etherscan.io/tx/0x92b853dd9269934a332feb5c906eb2b0ee45be220baa61647a6829daa460fe72) |
-| 领取奖励 | `0x0ba7a5aa...` | [查看](https://sepolia.etherscan.io/tx/0x0ba7a5aa43a9276b3d3810ac62a5ff1e37da5bb3fe1c5e91790ae6a1496cc7d0) |
+| 创建挑战 | `0x88993c39...` | [查看](https://testnet.kitescan.ai/tx/0x88993c39ff54c28337d4f7da13ab8f00d629647685751ac50e70e683ecdb0844) |
+| AI Slash | `0x1aed52e4...` | [查看](https://testnet.kitescan.ai/tx/0x1aed52e4d0a88bf9bc8865ebb3e7e0903ef918aa70c75f0342850eebb5c097e2) |
+| 领取奖励 | `0x445ed639...` | [查看](https://testnet.kitescan.ai/tx/0x445ed639705b13a273b9f37d88941bd7cce5f07cd0039f4491eee273a3540ebb) |
 
 ---
 
@@ -246,7 +382,8 @@ Strict-Habit-Coach/
 ## 🔗 相关链接
 
 - **Kite AI 官方文档**: https://docs.gokite.ai/
-- **Sepolia 区块浏览器**: https://sepolia.etherscan.io/
+- **Kite Chain 区块浏览器**: https://testnet.kitescan.ai/
+- **Kite Faucet**: https://faucet.gokite.ai
 - **项目仓库**: https://github.com/ggus39/Strict-Habit-Coach
 
 ---
@@ -255,7 +392,9 @@ Strict-Habit-Coach/
 
 | 成员 | 角色 | GitHub |
 |------|------|--------|
-| ggus39 | 全栈开发 & AI Agent | [@ggus39](https://github.com/ggus39) |
+| ggus39 | 产品经理 | [@ggus39](https://github.com/ggus39) |
+| Oronm | 全栈开发 | [@Oronm-boop](https://github.com/Oronm-boop) |
+| mengchenxin | UI 设计 | - |
 
 ---
 

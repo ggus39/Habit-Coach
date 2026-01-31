@@ -11,9 +11,9 @@
 const { ethers } = require('ethers');
 require('dotenv').config();
 
-// 合约地址 (Sepolia)
-const HABIT_ESCROW_ADDRESS = '0xba1180cC038342d9be147cfeC8490af8c44aCE44';
-const STRICT_TOKEN_ADDRESS = '0xcECDE33801aDa871ABD5cd0406248B8A70a6FC32';
+// 合约地址 (Kite AI Testnet)
+const HABIT_ESCROW_ADDRESS = '0x6E577Db34B60fEb65c19b26a91c309B969bAA12F';
+const STRICT_TOKEN_ADDRESS = '0x3f7120711c122274b9cB4d8D72A16B49e06d86f1';
 
 // HabitEscrow ABI (仅包含需要的函数)
 const HABIT_ESCROW_ABI = [
@@ -77,8 +77,8 @@ const HABIT_ESCROW_ABI = [
     },
 ];
 
-// Sepolia RPC URL (Infura)
-const RPC_URL = 'https://sepolia.infura.io/v3/6bcc38f6e5554d6aa1089ee1e4ffe0f7';
+// Kite AI Testnet RPC URL
+const RPC_URL = 'https://rpc-testnet.gokite.ai/';
 
 async function main() {
     console.log('='.repeat(60));
@@ -104,9 +104,9 @@ async function main() {
     const balance = await provider.getBalance(wallet.address);
     console.log(`💰 ETH 余额: ${ethers.formatEther(balance)} ETH`);
 
-    if (balance < ethers.parseEther('0.02')) {
-        console.error('\n⚠️ ETH 余额不足，请先获取测试 ETH');
-        console.log('Sepolia Faucet: https://sepoliafaucet.com/');
+    if (balance < ethers.parseEther('0.001')) {
+        console.error('\n⚠️ KITE 余额不足，请先获取测试 KITE');
+        console.log('Kite Faucet: https://faucet.gokite.ai/');
         process.exit(1);
     }
 
